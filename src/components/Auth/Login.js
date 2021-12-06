@@ -1,8 +1,7 @@
 import React from "react";
-import firebase from "../../firebase";
 import {Grid, Form, Segment, Button, Header, Message, Icon} from 'semantic-ui-react';
 import { Link } from "react-router-dom";
-
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
 
 class Login extends React.Component{
     
@@ -20,12 +19,13 @@ class Login extends React.Component{
         this.setState({[event.target.name]:event.target.value})
     }
 
-    handleSubmit = event => {
+    handleSubmit = async event => {
         event.preventDefault();
         if (this.isFormValid(this.state)) {
+            const auth = getAuth()
           console.log(this.state.password)
           this.setState({ errors: [], loading: true });
-          firebase.auth().signInWithEmailAndPassword(this.state.email, this.state.password)
+         signInWithEmailAndPassword(auth, this.state.email, this.state.password)
             .then(signedInUser => {
               console.log(signedInUser);
             })

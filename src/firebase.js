@@ -6,13 +6,13 @@ import 'firebase/compat/storage';
 const firebaseConfig = {
   apiKey: "AIzaSyBj2DmsqujFDWY6Bd5HDPIBnwXuibnTDN4",
   authDomain: "react-chat-app-c57fc.firebaseapp.com",
+  databaseURL: "https://react-chat-app-c57fc-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "react-chat-app-c57fc",
   storageBucket: "react-chat-app-c57fc.appspot.com",
   messagingSenderId: "817359221097",
-  databaseURL: "https://react-chat-app-c57fc-default-rtdb.europe-west1.firebasedatabase.app/",
   appId: "1:817359221097:web:39bb35be7dd3593dd14df8",
   measurementId: "G-7VW9JQL6GM"
-}
+};
 firebase.initializeApp(firebaseConfig)
 
 export default firebase
