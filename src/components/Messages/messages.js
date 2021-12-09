@@ -5,16 +5,19 @@ import {Segment, Comment, Progress} from 'semantic-ui-react';
 import MessagesHeader from "./messagesHeader";
 import MessageForm from "./messageForm";
 import Message from './message'
+import Typing from "./typing";
 import firebase from '../../firebase'
 
 class Messages extends React.Component{
     state ={
         messagesRef:firebase.database().ref('messages'),
         usersRef:firebase.database().ref('users'),
+        typingRef:firebase.database().ref('typing'),
         channel:this.props.currentChannel,
         isChannelStarred:false,
         user:this.props.currentUser,
         messages:[],
+        typingUsers: [],
         messagesLoading:true,
         progressBar: false,
         numberOfUniqueUsers: '',
@@ -22,7 +25,8 @@ class Messages extends React.Component{
         searchLoading: false,
         searchResults: [],
         privateChannel:this.props.isPrivateChannel,
-        privateMessagesRef:firebase.database().ref('privateMessages')
+        privateMessagesRef:firebase.database().ref('privateMessages'),
+        connectedRef: firebase.database().ref('.info/connected')
     }
 
     componentDidMount(){
@@ -35,7 +39,42 @@ class Messages extends React.Component{
     }
 
     addListeners = channelId =>{
-        this.addMessageListener(channelId)
+        this.addMessageListener(channelId);
+        this.addTypingListeners(channelId);
+    };
+
+    addTypingListeners = channelId => {
+        let typingUsers = [];
+        this.state.typingRef.child(channelId).on('child_added', snap => {
+            if(snap.key !== this.state.user.uid){
+                typingUsers = typingUsers.concat({
+                    id:snap.key,
+                    name:snap.val()
+                })
+                this.setState({typingUsers})
+            }
+        })
+
+        this.state.typingRef.child(channelId).on('child_removed', snap => {
+            const index = typingUsers.findIndex(user => user.id === snap.key);
+            if(index !== -1){
+                typingUsers = typingUsers.filter(user => user.id !== snap.key);
+                this.setState({typingUsers})
+            }
+        })
+        this.state.connectedRef.on('value', snap => {
+            if(snap.val()===true){
+                this.state.typingRef
+                .child(channelId)
+                .child(this.state.user.uid)
+                .onDisconnect()
+                .remove(err => {
+                    if(err !== null){
+                        console.error(err)
+                    }
+                })
+            }
+        })
     }
 
     addMessageListener = channelId=>{
@@ -174,8 +213,16 @@ class Messages extends React.Component{
             '';
         }
 
+        displayTypingUsers = users => {
+            users.length > 0 && users.map(user=>(
+            <div style={{display:'flex', alignItems:'center', marginBottom: '0.2em'}} key={user.id}>
+                <span className="user__typing">{user.name}</span><Typing />
+            </div>
+            ))
+        }
+
     render(){
-        const {privateChannel, messagesRef, messages, channel, user, progressBar, numberOfUniqueUsers, searchResults, searchTerm, searchLoading, isChannelStarred} = this.state
+        const {privateChannel, messagesRef, messages, channel, user, progressBar, numberOfUniqueUsers, searchResults, searchTerm, searchLoading, isChannelStarred, typingUsers} = this.state
         return (
             <React.Fragment>
                 <MessagesHeader
@@ -189,7 +236,8 @@ class Messages extends React.Component{
                 />
                 <Segment>
                     <Comment.Group className={progressBar ? 'messages__progress':'messages'}>
-                     {searchTerm ? this.displayMessages(searchResults):this.displayMessages(messages)} 
+                        {searchTerm ? this.displayMessages(searchResults):this.displayMessages(messages)} 
+                        {this.displayTypingUsers(typingUsers)}
                     </Comment.Group>  
                 </Segment>
                 <MessageForm
