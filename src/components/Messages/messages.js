@@ -1,5 +1,5 @@
 import React from "react";
-import {Segment, Comment} from 'semantic-ui-react';
+import {Segment, Comment, Progress} from 'semantic-ui-react';
 import MessagesHeader from "./messagesHeader";
 import MessageForm from "./messageForm";
 import Message from './message'
@@ -12,7 +12,13 @@ class Messages extends React.Component{
         user:this.props.currentUser,
         messages:[],
         messagesLoading:true,
-        progressBar: false
+        progressBar: false,
+        numberOfUniqueUsers: '',
+        searchTerm: '',
+        searchLoading: false,
+        searchResults: [],
+        privateChannel:this.props.isPrivateChannel,
+        privateMessagesRef:firebase.database().ref('privateMessages')
     }
 
     componentDidMount(){
@@ -29,13 +35,27 @@ class Messages extends React.Component{
 
     addMessageListener = channelId=>{
         let loadedMessages = [];
-        this.state.messagesRef.child(channelId).on('child_added', snap=>{
+        const ref = this.getMessagesRef()
+        ref.child(channelId).on('child_added', snap=>{
             loadedMessages.push(snap.val());
             this.setState({
                 messages:loadedMessages,
                 messagesLoading:false
-            })
-        })
+            });
+            this.countUniqueUsers(loadedMessages);
+        });
+    };
+
+    countUniqueUsers = messages => {
+        const uniqueUsers = messages.reduce((acc, message)=>{
+            if(!acc.includes(message.user.name)){
+                acc.push(message.user.name);
+            }
+            return acc
+        }, [])
+        const plural = uniqueUsers.length > 1 || uniqueUsers.length === 0;
+        const numberOfUniqueUsers = `${uniqueUsers.length} user${plural?'s': ''}`;
+        this.setState({numberOfUniqueUsers})
     }
 
     displayMessages = messages =>
@@ -51,22 +71,60 @@ class Messages extends React.Component{
             if(percent >0){
                 this.setState({progressBar: true})
             }
+        };
+
+        handleChange = event => {
+            this.setState({
+                searchTerm: event.target.value,
+                searchLoading: true
+            },() => this.handleSearchMessages())
+        }
+
+        handleSearchMessages = () => {
+            const channelMessages = [...this.state.messages];
+            const regex = new RegExp(this.state.searchTerm, 'gi');
+            const searchResults = channelMessages.reduce((acc, message)=>{
+                if(message.content && message.content.match(regex) || message.user.name.match(regex)){
+                    acc.push(message);
+                }
+                return acc;
+            },[])
+            this.setState({searchResults});
+            setTimeout(()=>this.setState({searchLoading:false}), 500)
+        }
+
+        getMessagesRef = () =>{
+            const {messagesRef, privateMessagesRef, privateChannel} = this.state;
+            return privateChannel ? privateMessagesRef : messagesRef;
+        }
+
+        displayChannelName = channel => {
+            return channel ? `${this.state.privateChannel ? `@`:'#'}${channel.name}`:
+            '';
         }
 
     render(){
-        const {messagesRef, messages, channel, user, progressBar} = this.state
+        const {privateChannel, messagesRef, messages, channel, user, progressBar, numberOfUniqueUsers, searchResults, searchTerm, searchLoading} = this.state
         return (
             <React.Fragment>
-                <MessagesHeader/>
+                <MessagesHeader
+                channelName={this.displayChannelName(channel)}
+                numberOfUniqueUsers={numberOfUniqueUsers}
+                handleChange={this.handleChange}
+                searchLoading={searchLoading}
+                isPrivateChannel={privateChannel}
+                />
                 <Segment>
                     <Comment.Group className={progressBar ? 'messages__progress':'messages'}>
-                     {this.displayMessages(messages)} 
+                     {searchTerm ? this.displayMessages(searchResults):this.displayMessages(messages)} 
                     </Comment.Group>  
                 </Segment>
                 <MessageForm
                 messagesRef={messagesRef}
                 currentChannel={channel}
                 currentUser={user}
+                isPrivateChannel={privateChannel}
+                getMessagesRef={this.getMessagesRef}
                 isProgressBarVisible={this.isProgressBarVisible}
                 />
             </React.Fragment>
