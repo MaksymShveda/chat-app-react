@@ -173,7 +173,7 @@ class Channels extends React.Component{
                 active={channel.id===this.state.activeChannel}
                 >
                     {this.getNotificationCount(channel) && (
-                        <Label color="red'">{this.getNotificationCount(channel)}</Label>
+                        <Label color="red">{this.getNotificationCount(channel)}</Label>
                     )}
                 # {channel.name}
             </Menu.Item>
